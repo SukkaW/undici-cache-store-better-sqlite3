@@ -1,6 +1,6 @@
 {
   "name": "undici-cache-store-better-sqlite3",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A undici cache store powered by `better-sqlite3` instead of `node:sqlite`",
   "repository": {
     "url": "https://github.com/SukkaW/undici-cache-store-better-sqlite3"
