@@ -1,7 +1,8 @@
 import type CacheHandler from 'undici/types/cache-interceptor';
 
-import { Writable } from 'stream'
-import createDb from 'better-sqlite3'
+import { Writable } from 'node:stream';
+import createDb from 'better-sqlite3';
+import { Buffer } from 'node:buffer';
 import type { Database, Statement } from 'better-sqlite3';
 
 export interface BetterSqlite3CacheStoreOpts {
@@ -9,12 +10,12 @@ export interface BetterSqlite3CacheStoreOpts {
    * Location of the database
    * @default ':memory:'
    */
-  location?: string
+  location?: string,
 
   /**
    * @default Infinity
    */
-  maxCount?: number
+  maxCount?: number,
 
   /**
    * @default Infinity
@@ -22,13 +23,13 @@ export interface BetterSqlite3CacheStoreOpts {
   maxEntrySize?: number
 }
 
-const VERSION = 3
+const VERSION = 3;
 
 // 2gb
-const MAX_ENTRY_SIZE = 2 * 1000 * 1000 * 1000
+const MAX_ENTRY_SIZE = 2 * 1000 * 1000 * 1000;
 
 interface SqliteStoreValue extends Omit<CacheHandler.CacheValue, 'headers' | 'vary' | 'cacheControlDirectives'> {
-  readonly id: number
+  readonly id: number,
   headers?: string,
   vary?: string,
   body: string,
@@ -38,28 +39,28 @@ interface SqliteStoreValue extends Omit<CacheHandler.CacheValue, 'headers' | 'va
 }
 
 export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
-  private maxEntrySize = MAX_ENTRY_SIZE
-  private maxCount = Infinity
+  private maxEntrySize = MAX_ENTRY_SIZE;
+  private maxCount = Infinity;
 
-  private db: Database
+  private db: Database;
 
-  private getValuesQuery: Statement<[url: string, method: string], SqliteStoreValue>
-  private insertValueQuery: Statement
-  private updateValueQuery: Statement
-  private deleteByUrlQuery: Statement
-  private countEntriesQuery: Statement<[], { total: number }>
-  private deleteExpiredValuesQuery: Statement
-  private deleteOldValuesQuery: Statement<[number], number> | null
+  private getValuesQuery: Statement<[url: string, method: string], SqliteStoreValue>;
+  private insertValueQuery: Statement;
+  private updateValueQuery: Statement;
+  private deleteByUrlQuery: Statement;
+  private countEntriesQuery: Statement<[], { total: number }>;
+  private deleteExpiredValuesQuery: Statement;
+  private deleteOldValuesQuery: Statement<[number], number> | null;
 
   constructor({
     location = ':memory:',
     maxCount = Infinity,
     maxEntrySize = MAX_ENTRY_SIZE
   }: BetterSqlite3CacheStoreOpts) {
-    this.maxCount = maxCount
-    this.maxEntrySize = maxEntrySize
+    this.maxCount = maxCount;
+    this.maxEntrySize = maxEntrySize;
 
-    this.db = createDb(location)
+    this.db = createDb(location);
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS cacheInterceptorV${VERSION} (
@@ -84,7 +85,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
       CREATE INDEX IF NOT EXISTS idx_cacheInterceptorV${VERSION}_url ON cacheInterceptorV${VERSION}(url);
       CREATE INDEX IF NOT EXISTS idx_cacheInterceptorV${VERSION}_method ON cacheInterceptorV${VERSION}(method);
       CREATE INDEX IF NOT EXISTS idx_cacheInterceptorV${VERSION}_deleteAt ON cacheInterceptorV${VERSION}(deleteAt);
-    `)
+    `);
 
     this.getValuesQuery = this.db.prepare(`
       SELECT
@@ -105,7 +106,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
         AND method = ?
       ORDER BY
         deleteAt ASC
-    `)
+    `);
 
     this.updateValueQuery = this.db.prepare(`
       UPDATE cacheInterceptorV${VERSION} SET
@@ -121,7 +122,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
         deleteAt = ?
       WHERE
         id = ?
-    `)
+    `);
 
     this.insertValueQuery = this.db.prepare(`
       INSERT INTO cacheInterceptorV${VERSION} (
@@ -139,19 +140,19 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
         staleAt,
         deleteAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
+    `);
 
     this.deleteByUrlQuery = this.db.prepare(
       `DELETE FROM cacheInterceptorV${VERSION} WHERE url = ?`
-    )
+    );
 
     this.countEntriesQuery = this.db.prepare(
       `SELECT COUNT(*) AS total FROM cacheInterceptorV${VERSION}`
-    )
+    );
 
     this.deleteExpiredValuesQuery = this.db.prepare(
       `DELETE FROM cacheInterceptorV${VERSION} WHERE deleteAt <= ?`
-    )
+    );
 
     this.deleteOldValuesQuery = this.maxCount === Infinity
       ? null
@@ -164,78 +165,72 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
           ORDER BY cachedAt DESC
           LIMIT ?
         )
-      `)
+      `);
   }
 
   close() {
-    this.db.close()
-  }
-
-  private makeValueUrl(key: CacheHandler.CacheKey) {
-    return `${key.origin}/${key.path}`
+    this.db.close();
   }
 
   private findValue(key: CacheHandler.CacheKey, canBeExpired = false) {
-    const url = this.makeValueUrl(key)
-    const { headers, method } = key
+    const url = makeValueUrl(key);
+    const { headers, method } = key;
 
-    const values = this.getValuesQuery.all(url, method)
+    const values = this.getValuesQuery.all(url, method);
 
     if (values.length === 0) {
-      return undefined
+      return;
     }
 
-    const now = Date.now()
+    const now = Date.now();
     for (const value of values) {
       if (now >= value.deleteAt && !canBeExpired) {
-        return undefined
+        return;
       }
 
-      let matches = true
+      let matches = true;
 
       let vary;
       if (value.vary) {
         if (!headers) {
-          return undefined
+          return;
         }
 
         if (typeof value.vary === 'string') {
-          vary = JSON.parse(value.vary)
+          vary = JSON.parse(value.vary);
         } else {
-          vary = value.vary
+          vary = value.vary;
         }
 
         for (const header in vary) {
           if (!headerValueEquals(headers[header], vary[header])) {
-            matches = false
-            break
+            matches = false;
+            break;
           }
         }
       }
 
       if (matches) {
-        return value
+        return value;
       }
     }
-
-    return undefined
   }
 
   get(key: CacheHandler.CacheKey): CacheHandler.GetResult | undefined {
-    assertCacheKey(key)
+    assertCacheKey(key);
 
-    const value = this.findValue(key)
+    const value = this.findValue(key);
 
     if (!value) {
-      return undefined
+      return undefined;
     }
 
-    const result = {
+    return {
       body: Buffer.from(value.body),
       statusCode: value.statusCode,
       statusMessage: value.statusMessage,
       headers: value.headers ? JSON.parse(value.headers) : undefined,
-      etag: value.etag ? value.etag : undefined,
+      etag: value.etag ?? undefined,
       vary: value.vary as CacheHandler.CacheValue['vary'] ?? undefined,
       cacheControlDirectives: value.cacheControlDirectives
         ? JSON.parse(value.cacheControlDirectives)
@@ -243,68 +238,66 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
       cachedAt: value.cachedAt,
       staleAt: value.staleAt,
       deleteAt: value.deleteAt
-    } satisfies CacheHandler.GetResult
-
-    return result
+    } satisfies CacheHandler.GetResult;
   }
 
   /**
    * Counts the number of rows in the cache
    */
   get size() {
-    const { total } = this.countEntriesQuery.get()!
-    return total
+    const { total } = this.countEntriesQuery.get()!;
+    return total;
   }
 
   private prune() {
     if (this.size <= this.maxCount) {
-      return 0
+      return 0;
     }
 
-
-    const removed = this.deleteExpiredValuesQuery.run(Date.now()).changes
+    const removed = this.deleteExpiredValuesQuery.run(Date.now()).changes;
     if (removed > 0) {
-      return removed
+      return removed;
     }
 
     if (this.deleteOldValuesQuery) {
-      const removed = this.deleteOldValuesQuery?.run(Math.max(Math.floor(this.maxCount * 0.1), 1)).changes
+      const removed = this.deleteOldValuesQuery.run(Math.max(Math.floor(this.maxCount * 0.1), 1)).changes;
       if (removed > 0) {
-        return removed
+        return removed;
       }
     }
 
-    return 0
+    return 0;
   }
 
   createWriteStream(key: CacheHandler.CacheKey, value: CacheHandler.CacheValue) {
-    assertCacheKey(key)
-    assertCacheValue(value)
+    assertCacheKey(key);
+    assertCacheValue(value);
 
-    const url = this.makeValueUrl(key)
-    let size = 0
+    const url = makeValueUrl(key);
+    let size = 0;
 
-    const body: Buffer[] = []
-    const store = this
+    const body: Buffer[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- inside class calling outer methods
+    const store = this;
 
     return new Writable({
       write(chunk, encoding, callback) {
         if (typeof chunk === 'string') {
-          chunk = Buffer.from(chunk, encoding)
+          chunk = Buffer.from(chunk, encoding);
         }
 
-        size += chunk.byteLength
+        size += chunk.byteLength;
 
         if (size < store.maxEntrySize) {
-          body.push(chunk)
+          body.push(chunk);
         } else {
-          this.destroy()
+          this.destroy();
         }
 
-        callback()
+        callback();
       },
       final(callback) {
-        const existingValue = store.findValue(key, true)
+        const existingValue = store.findValue(key, true);
         if (existingValue) {
           // Updating an existing response, let's overwrite it
           store.updateValueQuery.run(
@@ -313,15 +306,15 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
             value.statusCode,
             value.statusMessage,
             value.headers ? JSON.stringify(value.headers) : null,
-            value.etag ? value.etag : null,
+            value.etag || null,
             value.cacheControlDirectives ? JSON.stringify(value.cacheControlDirectives) : null,
             value.cachedAt,
             value.staleAt,
             value.deleteAt,
             existingValue.id
-          )
+          );
         } else {
-          store.prune()
+          store.prune();
           // New response, let's insert it
           store.insertValueQuery.run(
             url,
@@ -331,87 +324,91 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
             value.statusCode,
             value.statusMessage,
             value.headers ? JSON.stringify(value.headers) : null,
-            value.etag ? value.etag : null,
+            value.etag || null,
             value.cacheControlDirectives ? JSON.stringify(value.cacheControlDirectives) : null,
             value.vary ? JSON.stringify(value.vary) : null,
             value.cachedAt,
             value.staleAt,
             value.deleteAt
-          )
+          );
         }
 
-        callback()
+        callback();
       }
-    })
+    });
   }
 
   delete(key: CacheHandler.CacheKey) {
     if (typeof key !== 'object') {
-      throw new TypeError(`expected key to be object, got ${typeof key}`)
+      throw new TypeError(`expected key to be object, got ${typeof key}`);
     }
 
-    this.deleteByUrlQuery.run(this.makeValueUrl(key))
+    this.deleteByUrlQuery.run(makeValueUrl(key));
   }
+}
+
+function makeValueUrl(key: CacheHandler.CacheKey) {
+  return `${key.origin}/${key.path}`;
 }
 
 function assertCacheKey(key: any): asserts key is CacheHandler.CacheValue {
   if (typeof key !== 'object') {
-    throw new TypeError(`expected key to be object, got ${typeof key}`)
+    throw new TypeError(`expected key to be object, got ${typeof key}`);
   }
 
   for (const property of ['origin', 'method', 'path']) {
     if (typeof key[property] !== 'string') {
-      throw new TypeError(`expected key.${property} to be string, got ${typeof key[property]}`)
+      throw new TypeError(`expected key.${property} to be string, got ${typeof key[property]}`);
     }
   }
 
   if (key.headers !== undefined && typeof key.headers !== 'object') {
-    throw new TypeError(`expected headers to be object, got ${typeof key}`)
+    throw new TypeError(`expected headers to be object, got ${typeof key}`);
   }
 }
 
 function assertCacheValue(value: any): asserts value is CacheHandler.CacheValue {
   if (typeof value !== 'object') {
-    throw new TypeError(`expected value to be object, got ${typeof value}`)
+    throw new TypeError(`expected value to be object, got ${typeof value}`);
   }
 
   for (const property of ['statusCode', 'cachedAt', 'staleAt', 'deleteAt']) {
     if (typeof value[property] !== 'number') {
-      throw new TypeError(`expected value.${property} to be number, got ${typeof value[property]}`)
+      throw new TypeError(`expected value.${property} to be number, got ${typeof value[property]}`);
     }
   }
 
   if (typeof value.statusMessage !== 'string') {
-    throw new TypeError(`expected value.statusMessage to be string, got ${typeof value.statusMessage}`)
+    throw new TypeError(`expected value.statusMessage to be string, got ${typeof value.statusMessage}`);
   }
 
   if (value.headers != null && typeof value.headers !== 'object') {
-    throw new TypeError(`expected value.rawHeaders to be object, got ${typeof value.headers}`)
+    throw new TypeError(`expected value.rawHeaders to be object, got ${typeof value.headers}`);
   }
 
   if (value.vary !== undefined && typeof value.vary !== 'object') {
-    throw new TypeError(`expected value.vary to be object, got ${typeof value.vary}`)
+    throw new TypeError(`expected value.vary to be object, got ${typeof value.vary}`);
   }
 
   if (value.etag !== undefined && typeof value.etag !== 'string') {
-    throw new TypeError(`expected value.etag to be string, got ${typeof value.etag}`)
+    throw new TypeError(`expected value.etag to be string, got ${typeof value.etag}`);
   }
 }
 
 function headerValueEquals(lhs: string | string[] | null | undefined, rhs: string | string[] | null | undefined) {
   if (Array.isArray(lhs) && Array.isArray(rhs)) {
     if (lhs.length !== rhs.length) {
-      return false
+      return false;
     }
 
     for (let i = 0; i < lhs.length; i++) {
       if (rhs.includes(lhs[i])) {
-        return false
+        return false;
       }
     }
 
-    return true
+    return true;
   }
 
-  return lhs === rhs
+  return lhs === rhs;
 }
