@@ -21,7 +21,10 @@
     }
   },
   "scripts": {
-    "build": "bunchee --minify --runtime nodejs"
+    "lint": "eslint --format=sukka .",
+    "build": "bunchee --minify --runtime nodejs",
+    "prerelease": "pnpm run lint && pnpm run test && pnpm run build",
+    "release": "bumpp -r --all --commit \"release: %s\" --tag \"%s\""
   },
   "keywords": [
     "undici",
@@ -33,8 +36,10 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@eslint-sukka/node": "^6.12.0",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.10.2",
+    "bumpp": "^9.9.1",
     "bunchee": "^6.0.3",
     "eslint": "^9.17.0",
     "eslint-config-sukka": "^6.12.0",
