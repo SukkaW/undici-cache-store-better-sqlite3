@@ -56,7 +56,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
     location = ':memory:',
     maxCount = Infinity,
     maxEntrySize = MAX_ENTRY_SIZE
-  }: BetterSqlite3CacheStoreOpts) {
+  }: BetterSqlite3CacheStoreOpts = {}) {
     this.maxCount = maxCount;
     this.maxEntrySize = maxEntrySize;
 
