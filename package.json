@@ -1,0 +1,52 @@
+{
+  "name": "undici-cache-store-better-sqlite3",
+  "version": "0.0.0",
+  "description": "A undici cache store powered by `better-sqlite3` instead of `node:sqlite`",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/es/index.mjs",
+  "types": "./dist/cjs/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/es/index.d.mts",
+        "default": "./dist/es/index.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "bunchee --minify --runtime nodejs"
+  },
+  "keywords": [
+    "undici",
+    "cache",
+    "cache store",
+    "sqlite",
+    "http cache"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.2",
+    "bunchee": "^6.0.3",
+    "eslint": "^9.17.0",
+    "eslint-config-sukka": "^6.12.0",
+    "eslint-formatter-sukka": "^6.12.0",
+    "typescript": "^5.7.2",
+    "undici": "^7.1.1"
+  },
+  "peerDependencies": {
+    "undici": ">=7.0.0"
+  },
+  "packageManager": "pnpm@9.15.0+sha512.76e2379760a4328ec4415815bcd6628dee727af3779aaa4c914e3944156c4299921a89f976381ee107d41f12cfa4b66681ca9c718f0668fa0831ed4c6d8ba56c",
+  "dependencies": {
+    "better-sqlite3": "^11.7.0"
+  }
+}
