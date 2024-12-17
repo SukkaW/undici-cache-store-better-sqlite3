@@ -26,7 +26,7 @@
   "scripts": {
     "lint": "eslint --format=sukka .",
     "build": "bunchee --minify --runtime nodejs",
-    "prerelease": "pnpm run lint && pnpm run test && pnpm run build",
+    "prerelease": "pnpm run lint && pnpm run build",
     "release": "bumpp -r --all --commit \"release: %s\" --tag \"%s\""
   },
   "keywords": [
