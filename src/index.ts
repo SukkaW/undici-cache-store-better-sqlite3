@@ -62,6 +62,11 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
 
     this.db = createDb(location);
 
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('synchronous = normal');
+    this.db.pragma('temp_store = memory');
+    this.db.pragma('optimize');
+
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS cacheInterceptorV${VERSION} (
         -- Data specific to us
