@@ -60,7 +60,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
     this.maxCount = maxCount;
     this.maxEntrySize = maxEntrySize;
 
-    this.db = createDb(location);
+    this.db = createDb(location, { fileMustExist: false });
 
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = normal');
