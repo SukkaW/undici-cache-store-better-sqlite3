@@ -139,8 +139,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
         etag = ?,
         cacheControlDirectives = ?,
         cachedAt = ?,
-        staleAt = ?,
-        deleteAt = ?
+        staleAt = ?
       WHERE
         id = ?
     `);
@@ -158,8 +157,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
         cacheControlDirectives,
         vary,
         cachedAt,
-        staleAt,
-        deleteAt
+        staleAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -276,13 +274,13 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
     }
 
     const removed = this.deleteExpiredValuesQuery.run(Date.now()).changes;
-    if (removed > 0) {
+    if (removed) {
       return removed;
     }
 
     if (this.deleteOldValuesQuery) {
       const removed = this.deleteOldValuesQuery.run(Math.max(Math.floor(this.maxCount * 0.1), 1)).changes;
-      if (removed > 0) {
+      if (removed) {
         return removed;
       }
     }
@@ -331,7 +329,6 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
             value.cacheControlDirectives ? JSON.stringify(value.cacheControlDirectives) : null,
             value.cachedAt,
             value.staleAt,
-            value.deleteAt,
             existingValue.id
           );
         } else {
@@ -349,8 +346,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
             value.cacheControlDirectives ? JSON.stringify(value.cacheControlDirectives) : null,
             value.vary ? JSON.stringify(value.vary) : null,
             value.cachedAt,
-            value.staleAt,
-            value.deleteAt
+            value.staleAt
           );
         }
 
