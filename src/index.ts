@@ -213,17 +213,12 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
 
       let matches = true;
 
-      let vary;
       if (value.vary) {
         if (!headers) {
           return;
         }
 
-        if (typeof value.vary === 'string') {
-          vary = JSON.parse(value.vary);
-        } else {
-          vary = value.vary;
-        }
+        const vary = JSON.parse(value.vary);
 
         for (const header in vary) {
           if (!headerValueEquals(headers[header], vary[header])) {
@@ -421,14 +416,21 @@ function assertCacheValue(value: any): asserts value is CacheHandler.CacheValue 
 }
 
 function headerValueEquals(lhs: string | string[] | null | undefined, rhs: string | string[] | null | undefined) {
+  if (lhs == null && rhs == null) {
+    return true;
+  }
+
+  if ((lhs == null && rhs != null)
+    || (lhs != null && rhs == null)) {
+    return false;
+  }
+
   if (Array.isArray(lhs) && Array.isArray(rhs)) {
-    for (let i = 0; i < lhs.length; i++) {
-      if (rhs.includes(lhs[i])) {
-        return false;
-      }
+    if (lhs.length !== rhs.length) {
+      return false;
     }
 
-    return true;
+    return lhs.every((x, i) => x === rhs[i]);
   }
 
   return lhs === rhs;
