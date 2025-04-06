@@ -346,11 +346,8 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
     const store = this;
 
     return new Writable({
-      write(chunk, encoding, callback) {
-        if (typeof chunk === 'string') {
-          chunk = Buffer.from(chunk, encoding);
-        }
-
+      decodeStrings: true,
+      write(chunk, _encoding, callback) {
         size += chunk.byteLength;
 
         if (size < store.maxEntrySize) {
