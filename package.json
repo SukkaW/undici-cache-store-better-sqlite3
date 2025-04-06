@@ -42,19 +42,19 @@
     "better-sqlite3": "^11.9.1"
   },
   "devDependencies": {
-    "@eslint-sukka/node": "^6.18.0",
-    "@types/better-sqlite3": "^7.6.12",
-    "@types/node": "^22.13.14",
+    "@eslint-sukka/node": "^6.18.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.14.0",
     "bumpp": "^10.1.0",
     "bunchee": "^6.5.0",
-    "eslint": "^9.23.0",
-    "eslint-config-sukka": "^6.18.0",
-    "eslint-formatter-sukka": "^6.18.0",
-    "typescript": "^5.8.2",
-    "undici": "^7.6.0"
+    "eslint": "^9.24.0",
+    "eslint-config-sukka": "^6.18.1",
+    "eslint-formatter-sukka": "^6.18.1",
+    "typescript": "^5.8.3",
+    "undici": "^7.7.0"
   },
   "peerDependencies": {
     "undici": ">=7.0.0"
   },
-  "packageManager": "pnpm@10.7.0"
+  "packageManager": "pnpm@10.7.1"
 }
