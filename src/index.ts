@@ -162,7 +162,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
         vary,
         cachedAt,
         staleAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     this.deleteByUrlQuery = this.db.prepare(
