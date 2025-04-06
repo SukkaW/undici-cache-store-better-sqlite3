@@ -37,13 +37,17 @@ const VERSION = 3;
 // 2gb
 const MAX_ENTRY_SIZE = 2 * 1000 * 1000 * 1000;
 
-interface SqliteStoreValue extends Omit<CacheHandler.CacheValue, 'headers' | 'vary' | 'cacheControlDirectives'> {
+interface SqliteStoreValue {
   readonly id: number,
+  body?: Uint8Array,
+  statusCode: number,
+  statusMessage: string,
   headers?: string,
   vary?: string,
-  body: string,
-  cacheControlDirectives: string,
-
+  etag?: string,
+  cacheControlDirectives?: string,
+  cachedAt: number,
+  staleAt: number,
   deleteAt: number
 }
 
@@ -235,29 +239,72 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
     }
   }
 
-  get(key: CacheHandler.CacheKey): CacheHandler.GetResult | undefined {
+  get(key: CacheHandler.CacheKey): CacheHandler.GetResult & { body?: Buffer } | undefined {
     this.assertCacheKey(key);
 
     const value = this.findValue(key);
+    return value
+      ? {
+        body: value.body ? Buffer.from(value.body.buffer, value.body.byteOffset, value.body.byteLength) : undefined,
+        statusCode: value.statusCode,
+        statusMessage: value.statusMessage,
+        headers: value.headers ? JSON.parse(value.headers) : undefined,
+        etag: value.etag || undefined,
+        vary: value.vary ? JSON.parse(value.vary) : undefined,
+        cacheControlDirectives: value.cacheControlDirectives
+          ? JSON.parse(value.cacheControlDirectives)
+          : undefined,
+        cachedAt: value.cachedAt,
+        staleAt: value.staleAt,
+        deleteAt: value.deleteAt
+      }
+      : undefined;
+  }
 
-    if (!value) {
-      return undefined;
+  set(key: CacheHandler.CacheKey, value: CacheHandler.CacheValue & { body: null | Buffer | Buffer[] }) {
+    assertCacheKey(key);
+
+    const url = makeValueUrl(key);
+    const body = Array.isArray(value.body) ? Buffer.concat(value.body) : value.body;
+    const size = body?.byteLength;
+
+    if (size && size > this.maxEntrySize) {
+      return;
     }
 
-    return {
-      body: Buffer.from(value.body),
-      statusCode: value.statusCode,
-      statusMessage: value.statusMessage,
-      headers: value.headers ? JSON.parse(value.headers) : undefined,
-      etag: value.etag ?? undefined,
-      vary: value.vary as CacheHandler.CacheValue['vary'] ?? undefined,
-      cacheControlDirectives: value.cacheControlDirectives
-        ? JSON.parse(value.cacheControlDirectives)
-        : undefined,
-      cachedAt: value.cachedAt,
-      staleAt: value.staleAt,
-      deleteAt: value.deleteAt
-    } satisfies CacheHandler.GetResult;
+    const existingValue = this.findValue(key, true);
+    if (existingValue) {
+      // Updating an existing response, let's overwrite it
+      this.updateValueQuery.run(
+        body,
+        value.deleteAt,
+        value.statusCode,
+        value.statusMessage,
+        value.headers ? JSON.stringify(value.headers) : null,
+        value.etag || null,
+        value.cacheControlDirectives ? JSON.stringify(value.cacheControlDirectives) : null,
+        value.cachedAt,
+        value.staleAt,
+        existingValue.id
+      );
+    } else {
+      this.prune();
+      // New response, let's insert it
+      this.insertValueQuery.run(
+        url,
+        key.method,
+        body,
+        value.deleteAt,
+        value.statusCode,
+        value.statusMessage,
+        value.headers ? JSON.stringify(value.headers) : null,
+        value.etag || null,
+        value.cacheControlDirectives ? JSON.stringify(value.cacheControlDirectives) : null,
+        value.vary ? JSON.stringify(value.vary) : null,
+        value.cachedAt,
+        value.staleAt
+      );
+    }
   }
 
   /**
@@ -292,7 +339,6 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
     this.assertCacheKey(key);
     this.assertCacheValue(value);
 
-    const url = makeValueUrl(key);
     let size = 0;
 
     const body: Buffer[] = [];
@@ -316,40 +362,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
         callback();
       },
       final(callback) {
-        const existingValue = store.findValue(key, true);
-        if (existingValue) {
-          // Updating an existing response, let's overwrite it
-          store.updateValueQuery.run(
-            Buffer.concat(body),
-            value.deleteAt,
-            value.statusCode,
-            value.statusMessage,
-            value.headers ? JSON.stringify(value.headers) : null,
-            value.etag || null,
-            value.cacheControlDirectives ? JSON.stringify(value.cacheControlDirectives) : null,
-            value.cachedAt,
-            value.staleAt,
-            existingValue.id
-          );
-        } else {
-          store.prune();
-          // New response, let's insert it
-          store.insertValueQuery.run(
-            url,
-            key.method,
-            Buffer.concat(body),
-            value.deleteAt,
-            value.statusCode,
-            value.statusMessage,
-            value.headers ? JSON.stringify(value.headers) : null,
-            value.etag || null,
-            value.cacheControlDirectives ? JSON.stringify(value.cacheControlDirectives) : null,
-            value.vary ? JSON.stringify(value.vary) : null,
-            value.cachedAt,
-            value.staleAt
-          );
-        }
-
+        store.set(key, { ...value, body });
         callback();
       }
     });
