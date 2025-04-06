@@ -39,7 +39,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "better-sqlite3": "^11.9.1"
+    "better-sqlite3": "^11.9.1",
+    "foxts": "^3.0.1"
   },
   "devDependencies": {
     "@eslint-sukka/node": "^6.18.1",

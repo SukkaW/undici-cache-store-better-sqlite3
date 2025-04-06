@@ -5,6 +5,8 @@ import createDb from 'better-sqlite3';
 import { Buffer } from 'node:buffer';
 import type { Database, Statement } from 'better-sqlite3';
 
+import { noop } from 'foxts/noop';
+
 export interface BetterSqlite3CacheStoreOpts {
   /**
    * Location of the database
@@ -20,7 +22,14 @@ export interface BetterSqlite3CacheStoreOpts {
   /**
    * @default Infinity
    */
-  maxEntrySize?: number
+  maxEntrySize?: number,
+
+  /**
+   * When set to true, the runtime type validation is disabled to improve performance.
+   *
+   * @default false
+   */
+  loose?: boolean
 }
 
 const VERSION = 3;
@@ -52,13 +61,20 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
   private deleteExpiredValuesQuery: Statement;
   private deleteOldValuesQuery: Statement<[number], number> | null;
 
+  private assertCacheKey: (key: any) => asserts key is CacheHandler.CacheKey;
+  private assertCacheValue: (value: any) => asserts value is CacheHandler.CacheValue;
+
   constructor({
     location = ':memory:',
     maxCount = Infinity,
-    maxEntrySize = MAX_ENTRY_SIZE
+    maxEntrySize = MAX_ENTRY_SIZE,
+    loose = false
   }: BetterSqlite3CacheStoreOpts = {}) {
     this.maxCount = maxCount;
     this.maxEntrySize = maxEntrySize;
+
+    this.assertCacheKey = loose ? noop : assertCacheKey;
+    this.assertCacheValue = loose ? noop : assertCacheValue;
 
     this.db = createDb(location, { fileMustExist: false });
 
@@ -222,7 +238,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
   }
 
   get(key: CacheHandler.CacheKey): CacheHandler.GetResult | undefined {
-    assertCacheKey(key);
+    this.assertCacheKey(key);
 
     const value = this.findValue(key);
 
@@ -275,8 +291,8 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
   }
 
   createWriteStream(key: CacheHandler.CacheKey, value: CacheHandler.CacheValue) {
-    assertCacheKey(key);
-    assertCacheValue(value);
+    this.assertCacheKey(key);
+    this.assertCacheValue(value);
 
     const url = makeValueUrl(key);
     let size = 0;
@@ -344,9 +360,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
   }
 
   delete(key: CacheHandler.CacheKey) {
-    if (typeof key !== 'object') {
-      throw new TypeError(`expected key to be object, got ${typeof key}`);
-    }
+    this.assertCacheKey(key);
 
     this.deleteByUrlQuery.run(makeValueUrl(key));
   }
@@ -402,10 +416,6 @@ function assertCacheValue(value: any): asserts value is CacheHandler.CacheValue 
 
 function headerValueEquals(lhs: string | string[] | null | undefined, rhs: string | string[] | null | undefined) {
   if (Array.isArray(lhs) && Array.isArray(rhs)) {
-    if (lhs.length !== rhs.length) {
-      return false;
-    }
-
     for (let i = 0; i < lhs.length; i++) {
       if (rhs.includes(lhs[i])) {
         return false;
