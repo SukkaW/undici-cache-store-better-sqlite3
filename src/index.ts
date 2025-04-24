@@ -68,6 +68,10 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
   private assertCacheKey: (key: any) => asserts key is CacheHandler.CacheKey;
   private assertCacheValue: (value: any) => asserts value is CacheHandler.CacheValue;
 
+  private shouldCheckPrune: boolean;
+
+  private prune: (this: this) => number;
+
   constructor({
     location = ':memory:',
     maxCount = Infinity,
@@ -189,6 +193,9 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
           LIMIT ?
         )
       `);
+
+    this.shouldCheckPrune = Number.isFinite(maxCount);
+    this.prune = this.shouldCheckPrune ? this.innerPrune.bind(this) : noop;
   }
 
   close() {
@@ -310,7 +317,7 @@ export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
     return total;
   }
 
-  private prune() {
+  private innerPrune() {
     if (this.size <= this.maxCount) {
       return 0;
     }
