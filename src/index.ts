@@ -52,25 +52,25 @@ interface SqliteStoreValue {
 }
 
 export class BetterSqlite3CacheStore implements CacheHandler.CacheStore {
-  private maxEntrySize = MAX_ENTRY_SIZE;
-  private maxCount = Infinity;
+  private readonly maxEntrySize = MAX_ENTRY_SIZE;
+  private readonly maxCount = Infinity;
 
-  private db: Database;
+  private readonly db: Database;
 
-  private getValuesQuery: Statement<[url: string, method: string], SqliteStoreValue>;
-  private insertValueQuery: Statement;
-  private updateValueQuery: Statement;
-  private deleteByUrlQuery: Statement;
-  private countEntriesQuery: Statement<[], { total: number }>;
-  private deleteExpiredValuesQuery: Statement;
-  private deleteOldValuesQuery: Statement<[number], number> | null;
+  private readonly getValuesQuery: Statement<[url: string, method: string], SqliteStoreValue>;
+  private readonly insertValueQuery: Statement;
+  private readonly updateValueQuery: Statement;
+  private readonly deleteByUrlQuery: Statement;
+  private readonly countEntriesQuery: Statement<[], { total: number }>;
+  private readonly deleteExpiredValuesQuery: Statement;
+  private readonly deleteOldValuesQuery: Statement<[number], number> | null;
 
-  private assertCacheKey: (key: any) => asserts key is CacheHandler.CacheKey;
-  private assertCacheValue: (value: any) => asserts value is CacheHandler.CacheValue;
+  private readonly assertCacheKey: (key: any) => asserts key is CacheHandler.CacheKey;
+  private readonly assertCacheValue: (value: any) => asserts value is CacheHandler.CacheValue;
 
-  private shouldCheckPrune: boolean;
+  private readonly shouldCheckPrune: boolean;
 
-  private prune: (this: this) => number;
+  private readonly prune: (this: this) => number;
 
   constructor({
     location = ':memory:',
